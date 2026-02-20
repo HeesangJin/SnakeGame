@@ -59,6 +59,6 @@ This document outlines the technical improvement plan to enhance the user experi
 
 ## Execution Guide (For Codex)
 
-1. **Modify `gameLogic.js`**: Add `inputQueue` to `createInitialState` and change logic in `setDirection` and `tick` functions.
-2. **Modify `app.js`**: Remove `setInterval` and rewrite the `step` function based on `requestAnimationFrame`.
+1. **Modify `src/gameLogic.js`**: Add `inputQueue` to `createInitialState` and change logic in `setDirection` and `tick` functions.
+2. **Modify `src/app.js`**: Remove `setInterval` and rewrite the `step` function based on `requestAnimationFrame`.
 3. **Test**: Verify that rapid direction changes (e.g., U-turn moves) are smooth.
