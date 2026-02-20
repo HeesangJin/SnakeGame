@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snake</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;700;800&family=Orbitron:wght@500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-0: #030614;
+        --bg-1: #0a1232;
+        --bg-2: #130a2b;
+        --text: #d7f9ff;
+        --muted: #7ac5d8;
+        --hud: rgba(6, 14, 35, 0.72);
+        --hud-border: #18f1ff;
+        --grid-line: rgba(24, 241, 255, 0.2);
+        --snake: #2dffb3;
+        --snake-head: #9dffe3;
+        --snake-glow: rgba(45, 255, 179, 0.52);
+        --food: #ff6324;
+        --food-glow: rgba(255, 99, 36, 0.8);
+        --monitor-glow: rgba(24, 241, 255, 0.55);
+        --danger: #ff3b2f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
+        background: #030308;
+        color: var(--text);
+        overflow: hidden;
+      }
+
+      #space-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        pointer-events: none;
+      }
+
+      .container {
+        width: min(94vw, 640px);
+        padding: 16px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .panel {
+        display: grid;
+        gap: 12px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: var(--hud);
+        border: 1px solid var(--hud-border);
+        box-shadow:
+          0 0 0 1px rgba(24, 241, 255, 0.25) inset,
+          0 0 24px rgba(24, 241, 255, 0.22);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .topbar::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(255, 255, 255, 0.02) 0 2px,
+          transparent 2px 4px
+        );
+        opacity: 0.45;
+      }
+
+      .score-card {
+        display: grid;
+        gap: 2px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .score {
+        font-family: 'Orbitron', 'Exo 2', monospace;
+        font-size: 1.9rem;
+        font-weight: 900;
+        line-height: 1.1;
+        text-shadow: 0 0 14px rgba(24, 241, 255, 0.82);
+      }
+
+      .board-wrap {
+        position: relative;
+        width: min(92vw, 500px);
+        height: min(92vw, 500px);
+        margin: 0 auto;
+        padding: 7px;
+        border-radius: 14px;
+        background:
+          linear-gradient(145deg, rgba(11, 24, 56, 0.95), rgba(5, 9, 24, 0.9)),
+          radial-gradient(circle at 50% 0%, rgba(24, 241, 255, 0.16), transparent 62%);
+        border: 1px solid rgba(24, 241, 255, 0.5);
+        box-shadow:
+          0 0 0 1px rgba(24, 241, 255, 0.2) inset,
+          0 0 24px var(--monitor-glow);
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(20, 1fr);
+        grid-template-rows: repeat(20, 1fr);
+        width: 100%;
+        height: 100%;
+        border: 2px solid rgba(24, 241, 255, 0.55);
+        border-radius: 9px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 25% 20%, rgba(55, 88, 160, 0.22), transparent 58%),
+          radial-gradient(circle at 72% 68%, rgba(80, 20, 110, 0.18), transparent 60%),
+          rgba(1, 8, 28, 0.78);
+        backdrop-filter: blur(2px);
+      }
+
+      .cell {
+        border: 1px solid var(--grid-line);
+      }
+
+      .cell.snake {
+        background: var(--snake);
+        border-radius: 4px;
+        box-shadow: 0 0 8px var(--snake-glow);
+      }
+
+      .cell.snake-head {
+        background: var(--snake-head);
+        border-radius: 4px;
+        box-shadow:
+          0 0 0 1px rgba(178, 255, 238, 0.4) inset,
+          0 0 16px rgba(157, 255, 227, 0.86);
+      }
+
+      .cell.food {
+        background: var(--food);
+        border-radius: 50%;
+        box-shadow:
+          0 0 14px var(--food-glow),
+          0 0 24px rgba(255, 99, 36, 0.42);
+        animation: pulseCore 1s ease-in-out infinite;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      button {
+        border: 1px solid rgba(24, 241, 255, 0.24);
+        background:
+          linear-gradient(165deg, rgba(57, 73, 97, 0.45), rgba(19, 24, 37, 0.82)),
+          repeating-linear-gradient(
+            45deg,
+            rgba(255, 255, 255, 0.02) 0 3px,
+            rgba(0, 0, 0, 0.06) 3px 6px
+          );
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: #c7f7ff;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-shadow: 0 0 8px rgba(24, 241, 255, 0.5);
+      }
+
+      button:hover {
+        border-color: rgba(24, 241, 255, 0.66);
+        box-shadow: 0 0 20px rgba(24, 241, 255, 0.36);
+      }
+
+      button:active {
+        transform: translateY(1px) scale(0.96);
+      }
+
+      .primary {
+        min-width: 100px;
+      }
+
+      .btn-label {
+        font-family: 'Orbitron', 'Exo 2', monospace;
+        font-size: 0.82rem;
+      }
+
+      .btn-icon {
+        margin-right: 6px;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(3, 56px);
+        grid-template-rows: repeat(3, 46px);
+        gap: 8px;
+        justify-content: center;
+      }
+
+      .up {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      .left {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      .down {
+        grid-column: 2;
+        grid-row: 2;
+      }
+
+      .right {
+        grid-column: 3;
+        grid-row: 2;
+      }
+
+      .dpad-btn {
+        background:
+          linear-gradient(165deg, rgba(53, 64, 88, 0.56), rgba(13, 16, 27, 0.88)),
+          radial-gradient(circle at 50% 30%, rgba(36, 241, 255, 0.12), transparent 55%);
+        font-size: 1.2rem;
+        font-weight: 800;
+      }
+
+      .hint {
+        text-align: center;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .status {
+        text-align: center;
+        min-height: 20px;
+        font-weight: 700;
+        color: #9eeeff;
+        letter-spacing: 0.05em;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 7px;
+        display: grid;
+        place-content: center;
+        gap: 12px;
+        text-align: center;
+        background:
+          repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.03) 0 2px,
+            transparent 2px 5px
+          ),
+          linear-gradient(180deg, rgba(99, 4, 4, 0.6), rgba(0, 0, 0, 0.86));
+        color: #fff;
+        border-radius: 9px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        backdrop-filter: blur(2px) brightness(0.7);
+      }
+
+      .overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .overlay-title {
+        margin: 0;
+        font-family: 'Orbitron', 'Exo 2', monospace;
+        font-size: clamp(1.8rem, 8vw, 2.8rem);
+        letter-spacing: 0.08em;
+        font-weight: 900;
+        color: #ff5e46;
+        text-shadow:
+          -1px 0 rgba(50, 193, 255, 0.5),
+          1px 0 rgba(255, 100, 86, 0.85),
+          0 0 18px rgba(255, 59, 47, 0.7);
+        animation: glitch 0.9s steps(2, end) infinite;
+      }
+
+      .overlay-btn {
+        color: #ffe5e2;
+        border-color: rgba(255, 94, 70, 0.6);
+        background:
+          linear-gradient(170deg, rgba(102, 20, 12, 0.86), rgba(42, 8, 6, 0.95)),
+          radial-gradient(circle at 50% 35%, rgba(255, 100, 66, 0.28), transparent 62%);
+        text-shadow: 0 0 8px rgba(255, 118, 93, 0.65);
+      }
+
+      .pause-overlay {
+        background:
+          linear-gradient(180deg, rgba(8, 20, 44, 0.45), rgba(1, 6, 20, 0.74)),
+          repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.02) 0 2px,
+            transparent 2px 6px
+          );
+        backdrop-filter: blur(2px) brightness(0.86);
+      }
+
+      .pause-overlay .overlay-title {
+        color: #8ff7ff;
+        font-size: clamp(1.4rem, 5vw, 2.1rem);
+        text-shadow:
+          0 0 12px rgba(36, 241, 255, 0.72),
+          0 0 22px rgba(36, 241, 255, 0.4);
+        animation: none;
+      }
+
+      .pause-overlay .overlay-btn {
+        color: #cffdff;
+        border-color: rgba(24, 241, 255, 0.62);
+        background:
+          linear-gradient(170deg, rgba(8, 43, 67, 0.8), rgba(5, 21, 36, 0.94)),
+          radial-gradient(circle at 50% 30%, rgba(36, 241, 255, 0.2), transparent 62%);
+        text-shadow: 0 0 8px rgba(36, 241, 255, 0.75);
+      }
+
+      @media (max-width: 640px) {
+        .container {
+          width: min(100vw, 520px);
+          padding: 10px 12px 14px;
+        }
+
+        .board-wrap {
+          width: min(94vw, 470px);
+          height: min(94vw, 470px);
+        }
+
+        .controls {
+          grid-template-columns: repeat(3, 64px);
+          grid-template-rows: repeat(3, 56px);
+          gap: 10px;
+        }
+
+        .dpad-btn {
+          min-width: 64px;
+          min-height: 56px;
+          font-size: 1.45rem;
+        }
+
+        .primary {
+          min-width: 112px;
+          min-height: 48px;
+        }
+
+        .hint {
+          padding-bottom: 2px;
+        }
+      }
+
+      @media (min-width: 1200px) {
+        .board-wrap {
+          width: 540px;
+          height: 540px;
+        }
+      }
+
+      @keyframes pulseCore {
+        0%,
+        100% {
+          transform: scale(0.84);
+          filter: brightness(0.9);
+        }
+        50% {
+          transform: scale(1);
+          filter: brightness(1.2);
+        }
+      }
+
+      @keyframes glitch {
+        0%,
+        60%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-2px);
+        }
+        40% {
+          transform: translateX(2px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="space-background" aria-hidden="true"></canvas>
+    <main class="container">
+      <section class="panel">
+        <div class="topbar">
+          <div class="score-card">
+            <span class="label">Score</span>
+            <span id="score" class="score">0</span>
+          </div>
+          <div class="score-card">
+            <span class="label">Best</span>
+            <span id="best" class="score">0</span>
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <div id="board" class="board" aria-label="Snake board"></div>
+          <div id="pauseOverlay" class="overlay pause-overlay" aria-live="polite" aria-hidden="true">
+            <p class="overlay-title">PAUSED</p>
+            <button id="overlayResumeBtn" class="overlay-btn" type="button">Resume</button>
+          </div>
+          <div id="gameOverOverlay" class="overlay" aria-live="polite" aria-hidden="true">
+            <p class="overlay-title">GAME OVER</p>
+            <button id="overlayRestartBtn" class="overlay-btn" type="button">Restart</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="pauseBtn" class="primary" type="button">
+            <span class="btn-icon">⏸</span><span class="btn-label">Pause</span>
+          </button>
+          <button id="restartBtn" class="primary" type="button">
+            <span class="btn-icon">⟲</span><span class="btn-label">Restart</span>
+          </button>
+        </div>
+
+        <div class="controls" aria-label="Direction controls">
+          <button class="up dpad-btn" data-dir="up" type="button" aria-label="Up">↑</button>
+          <button class="left dpad-btn" data-dir="left" type="button" aria-label="Left">←</button>
+          <button class="down dpad-btn" data-dir="down" type="button" aria-label="Down">↓</button>
+          <button class="right dpad-btn" data-dir="right" type="button" aria-label="Right">→</button>
+        </div>
+
+        <div class="hint">Arrow keys or WASD to move</div>
+        <div id="status" class="status"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./snake/spaceBackground.js"></script>
+    <script type="module" src="./snake/app.js"></script>
+  </body>
+</html>
